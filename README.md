@@ -24,28 +24,43 @@ data/               Universal ledger storage
 
 ## Getting started
 
+### Quick command checklist
+
+Paste these commands into a fresh terminal session to clone the project, prepare the virtual environment, and open the GUI. Replace `<your-account>` with the GitHub owner of your fork if needed. If you already cloned the repository, start from the `cd Self-accounting-software` line.
+
+```bash
+# 1) Grab the latest code
+git clone https://github.com/<your-account>/Self-accounting-software.git
+cd Self-accounting-software
+
+# 2) (macOS + Homebrew Python) install Tk support once
+brew install python-tk@3.13
+
+# 3) Create & activate an isolated environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 4) Install Python dependencies inside the venv
+pip install -r requirements.txt
+
+# 5) Pull any new commits, then start the app
+git pull --ff-only
+python -m app
+```
+
+For everyday use, you only need to revisit the last three steps: reactivate `.venv` (if your prompt no longer shows it), run `git pull --ff-only` to grab the latest commits, and then launch with `python -m app`.
+
+### Background details
+
 1. Ensure your Python installation includes **Tk** support (required for the GUI).
    - macOS users: the official installer from [python.org](https://www.python.org/downloads/macos/) bundles Tk. If you use Homebrew, install the matching python-tk formula (for example, run `brew install python-tk@3.13`).
    - Linux users: install your distro's `tk`/`python3-tk` package.
 2. Create and activate a Python 3.11+ environment.
-3. Install dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
+3. Install dependencies with `pip install -r requirements.txt`.
 4. Adjust `config/accounts.json` if you need to rename or extend accounts. The bundled list matches the chart you provided and keeps **numeric** identifiers so that the transaction ID format `xxmmyynnn` can be produced.
-5. Launch the desktop app:
+5. Launch the desktop app with `python -m app`.
 
-   ```bash
-   python -m app
-   ```
-
-   On macOS you can double-click `launch_app.command` in Finder after marking it as executable:
-
-   ```bash
-   chmod +x launch_app.command
-   ```
+   On macOS you can double-click `launch_app.command` in Finder after marking it as executable (`chmod +x launch_app.command`).
 
    The script activates `.venv`, pulls the latest code with `git pull --ff-only`, and opens the GUI. If the environment has not been created yet, it shows a dialog explaining which setup step is missing.
 
