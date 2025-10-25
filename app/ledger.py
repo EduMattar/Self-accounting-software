@@ -19,6 +19,7 @@ class LedgerEntry:
     booking_date: date
     description: str
     payee: str
+    counterparty_account: str
     amount: Decimal
     currency: str
     debit_account: str
@@ -37,6 +38,7 @@ class UniversalLedger:
         "date",
         "description",
         "payee",
+        "counterparty_account",
         "amount",
         "currency",
         "debit_account",
@@ -54,6 +56,55 @@ class UniversalLedger:
             with self._path.open("w", newline="", encoding="utf-8") as fh:
                 writer = csv.writer(fh)
                 writer.writerow(self.headers)
+        else:
+            self._ensure_headers()
+
+    def _ensure_headers(self) -> None:
+        with self._path.open("r", newline="", encoding="utf-8") as fh:
+            reader = csv.reader(fh)
+            try:
+                existing_header = next(reader)
+            except StopIteration:
+                existing_header = []
+
+        if not existing_header:
+            with self._path.open("w", newline="", encoding="utf-8") as fh:
+                writer = csv.writer(fh)
+                writer.writerow(self.headers)
+            return
+
+        if existing_header == self.headers:
+            return
+
+        needs_upgrade = "counterparty_account" not in existing_header
+        if not needs_upgrade:
+            return
+
+        with self._path.open("r", newline="", encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            rows = list(reader)
+
+        with self._path.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(self.headers)
+            for row in rows:
+                writer.writerow(
+                    [
+                        row.get("transaction_id", ""),
+                        row.get("date", ""),
+                        row.get("description", ""),
+                        row.get("payee", ""),
+                        row.get("counterparty_account", ""),
+                        row.get("amount", ""),
+                        row.get("currency", ""),
+                        row.get("debit_account", ""),
+                        row.get("credit_account", ""),
+                        row.get("bank_account", ""),
+                        row.get("source_file", ""),
+                        row.get("source_line", ""),
+                        row.get("unique_hash", ""),
+                    ]
+                )
 
     def load_hashes(self) -> Dict[str, LedgerEntry]:
         entries: Dict[str, LedgerEntry] = {}
@@ -65,6 +116,7 @@ class UniversalLedger:
                     booking_date=date.fromisoformat(row["date"]),
                     description=row["description"],
                     payee=row["payee"],
+                    counterparty_account=row.get("counterparty_account", ""),
                     amount=Decimal(row["amount"]),
                     currency=row["currency"],
                     debit_account=row["debit_account"],
@@ -89,6 +141,7 @@ class UniversalLedger:
                     booking_date=tx.booking_date,
                     description=tx.description,
                     payee=tx.payee,
+                    counterparty_account=tx.counterparty_account or "",
                     amount=tx.amount,
                     currency=tx.currency or "",
                     debit_account=tx.debit_account,
@@ -104,6 +157,7 @@ class UniversalLedger:
                         entry.booking_date.isoformat(),
                         entry.description,
                         entry.payee,
+                        entry.counterparty_account,
                         format_decimal(entry.amount),
                         entry.currency,
                         entry.debit_account,
@@ -140,6 +194,7 @@ class UniversalLedger:
                     booking_date=date.fromisoformat(row["date"]),
                     description=row["description"],
                     payee=row["payee"],
+                    counterparty_account=row.get("counterparty_account", ""),
                     amount=Decimal(row["amount"]),
                     currency=row["currency"],
                     debit_account=row["debit_account"],
@@ -165,6 +220,7 @@ def compute_unique_hash(
             record.booking_date.isoformat(),
             record.payee.strip(),
             record.description.strip(),
+            (record.counterparty_account or "").strip(),
             f"{amount_value.normalize()}",
             (record.currency or "").upper(),
             debit_account,

@@ -5,6 +5,7 @@ set projectFolder to "/path/to/Self-accounting-software"
 set venvDir to ".venv"
 set activateScript to projectFolder & "/" & venvDir & "/bin/activate"
 set launchCommand to "cd " & quoted form of projectFolder & " && " & \
+    "git pull --ff-only && " & \
     "source " & quoted form of activateScript & " && python -m app"
 
 tell application "Terminal"

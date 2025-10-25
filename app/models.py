@@ -18,6 +18,7 @@ class TransactionRecord:
     amount: Decimal
     currency: Optional[str]
     payee: str
+    counterparty_account: Optional[str]
     bank_account: Optional[str]
 
 

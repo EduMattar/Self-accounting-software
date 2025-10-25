@@ -69,6 +69,19 @@ class StatementParser:
             "account name",
             "merchant",
         ],
+        "counterparty_account": [
+            "counterparty account",
+            "counterparty iban",
+            "beneficiary account",
+            "beneficiary iban",
+            "remote account",
+            "other account",
+            "counter account",
+            "to account",
+            "customer account",
+            "recipient account",
+            "account number",
+        ],
         "bank_account": [
             "account",
             "account number",
@@ -118,7 +131,9 @@ class StatementParser:
 
             date_value = self._parse_date(row, column_map)
             description = self._read_cell(row, column_map["description"]) or ""
-            payee = self._read_cell(row, column_map["payee"]) or description
+            counterparty = self._read_cell(row, column_map.get("counterparty_account"))
+            raw_payee = self._read_cell(row, column_map["payee"]) if column_map.get("payee") else None
+            payee = self._compose_payee(raw_payee, counterparty, description)
             amount = self._parse_amount(row, column_map)
             currency = self._read_cell(row, column_map["currency"])
             bank_account = self._read_cell(row, column_map["bank_account"])
@@ -137,11 +152,30 @@ class StatementParser:
                     amount=amount,
                     currency=currency,
                     payee=payee,
+                    counterparty_account=counterparty,
                     bank_account=bank_account,
                 )
             )
 
         return ParseResult(records=records, missing_currencies=missing_currency, missing_bank_accounts=missing_bank_account)
+
+    def _compose_payee(
+        self,
+        payee_value: Optional[str],
+        counterparty_account: Optional[str],
+        description: str,
+    ) -> str:
+        components: List[str] = []
+        if payee_value:
+            components.append(payee_value)
+        if counterparty_account and counterparty_account not in components:
+            if components:
+                components.append(f"[{counterparty_account}]")
+            else:
+                components.append(counterparty_account)
+        if not components:
+            components.append(description or "Unknown counterparty")
+        return " ".join(components).strip()
 
     def _auto_detect_columns(
         self,
@@ -179,6 +213,18 @@ class StatementParser:
             if description_column:
                 column_map["description"] = description_column
                 assigned.add(description_column)
+
+        if column_map.get("bank_account") is None:
+            bank_column = self._detect_bank_account_column(rows, available - assigned)
+            if bank_column:
+                column_map["bank_account"] = bank_column
+                assigned.add(bank_column)
+
+        if column_map.get("counterparty_account") is None:
+            counterparty_column = self._detect_counterparty_account_column(rows, available - assigned)
+            if counterparty_column:
+                column_map["counterparty_account"] = counterparty_column
+                assigned.add(counterparty_column)
 
         payee_column = column_map.get("payee")
         if payee_column:
@@ -444,14 +490,51 @@ class StatementParser:
     def _detect_bank_account_column(
         self, rows: Sequence[Dict[str, str]], available_columns: Iterable[str]
     ) -> Optional[str]:
+        single_value_candidates = []
         for column in available_columns:
-            unique_values = set()
-            for value in self._iter_column_values(rows, column, limit=200):
-                if value:
-                    unique_values.add(value)
+            unique_values = {
+                value for value in self._iter_column_values(rows, column, limit=200) if value
+            }
+            if len(unique_values) == 1:
+                single_value_candidates.append((column, next(iter(unique_values))))
+        if single_value_candidates:
+            return single_value_candidates[0][0]
+
+        for column in available_columns:
+            unique_values = {
+                value for value in self._iter_column_values(rows, column, limit=200) if value
+            }
             if 1 < len(unique_values) <= 10:
                 return column
         return None
+
+    def _detect_counterparty_account_column(
+        self, rows: Sequence[Dict[str, str]], available_columns: Iterable[str]
+    ) -> Optional[str]:
+        best_column = None
+        best_score = 0
+        for column in available_columns:
+            unique_values = []
+            account_like = 0
+            for value in self._iter_column_values(rows, column, limit=300):
+                if not value:
+                    continue
+                text = value.strip()
+                if not text:
+                    continue
+                if text.lower() in {"debit", "credit", "withdrawal", "deposit"}:
+                    continue
+                if text not in unique_values:
+                    unique_values.append(text)
+                    if any(char.isdigit() for char in text) and len(text) >= 6:
+                        account_like += 1
+            if len(unique_values) < 3:
+                continue
+            score = account_like * 2 + len(unique_values)
+            if score > best_score:
+                best_score = score
+                best_column = column
+        return best_column
 
     def _iter_column_values(
         self, rows: Sequence[Dict[str, str]], column: str, limit: int = 200

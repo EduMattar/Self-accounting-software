@@ -6,7 +6,7 @@ A small Tkinter-based desktop helper that normalizes CSV statements from multipl
 
 - Import CSV statements from different banks (mixed delimiters and column names supported).
 - Auto-detect date, amount, currency, and account columns even when headers use unfamiliar labels.
-- Detect unique payees/merchants and prompt once for the matching debit/credit accounts.
+- Detect unique payees/merchants (combining counterparty account numbers when available) and prompt once for the matching debit/credit accounts.
 - Persist mappings for future statements in `config/payee_mappings.json`.
 - Append the transactions to a universal ledger (`data/universal_transactions.csv`) with statement aware numbering (`xxmmyynnn`).
 - Generate categorized CSV exports for each processed statement.
@@ -47,8 +47,7 @@ data/               Universal ledger storage
    chmod +x launch_app.command
    ```
 
-   The script activates `.venv` automatically and opens the GUI. If the environment has not been created yet, it shows a dialog
-   explaining which setup step is missing.
+   The script activates `.venv`, pulls the latest code with `git pull --ff-only`, and opens the GUI. If the environment has not been created yet, it shows a dialog explaining which setup step is missing.
 
 ### Create a macOS app icon/launcher
 
@@ -61,9 +60,20 @@ If you prefer a Dock icon instead of the shell script, compile the supplied Appl
    osacompile -o "Self Accounting Helper.app" macos/launch_app.applescript
    ```
 
-3. Move the generated `Self Accounting Helper.app` anywhere you like (Applications folder, Desktop, or the Dock). Double-clicking it activates your virtual environment and launches `python -m app` automatically.
+3. Move the generated `Self Accounting Helper.app` anywhere you like (Applications folder, Desktop, or the Dock). Double-clicking it pulls the latest commits, activates your virtual environment, and launches `python -m app` automatically.
 
 Recompile the app after updating the AppleScript path or if you relocate the repository.
+
+### Always launch the freshest GitHub version
+
+Whenever you run the app from Terminal, pull the latest changes first:
+
+```bash
+git pull --ff-only
+python -m app
+```
+
+If you keep local edits, commit or stash them before pulling. The Finder launcher (`launch_app.command`) and the AppleScript app bundle already execute `git pull --ff-only` for you before opening the GUI.
 
 ## Usage workflow
 
