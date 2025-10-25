@@ -104,8 +104,9 @@ class StatementParser:
             headers = {name.lower().strip(): name for name in reader.fieldnames}
             rows = list(reader)
 
+        header_names = list(headers.values())
         column_map = {key: self._find_column(headers, aliases) for key, aliases in self.COLUMN_ALIASES.items()}
-        self._auto_detect_columns(rows, headers.values(), column_map)
+        self._auto_detect_columns(rows, header_names, column_map)
 
         records: List[TransactionRecord] = []
         missing_currency = False
@@ -179,8 +180,19 @@ class StatementParser:
                 column_map["description"] = description_column
                 assigned.add(description_column)
 
-        if column_map.get("payee") is None and column_map.get("description"):
-            column_map["payee"] = column_map["description"]
+        payee_column = column_map.get("payee")
+        if payee_column:
+            if self._column_has_single_value(rows, payee_column):
+                payee_column = None
+        if payee_column is None:
+            detected_payee = self._detect_payee_column(rows, available, assigned)
+            if detected_payee:
+                column_map["payee"] = detected_payee
+                assigned.add(detected_payee)
+            elif column_map.get("description"):
+                column_map["payee"] = column_map["description"]
+        elif column_map.get("payee") and column_map.get("payee") not in assigned:
+            assigned.add(column_map["payee"])
 
         if column_map.get("currency") is None:
             currency_column = self._detect_currency_column(rows, available - assigned)
@@ -192,6 +204,59 @@ class StatementParser:
             bank_column = self._detect_bank_account_column(rows, available - assigned)
             if bank_column:
                 column_map["bank_account"] = bank_column
+
+    def _column_has_single_value(self, rows: Sequence[Dict[str, str]], column: str) -> bool:
+        unique = set()
+        for row in rows:
+            value = row.get(column)
+            if value is None:
+                continue
+            text = value.strip()
+            if not text:
+                continue
+            unique.add(text.lower())
+            if len(unique) > 1:
+                return False
+        return True
+
+    def _detect_payee_column(
+        self,
+        rows: Sequence[Dict[str, str]],
+        available: Iterable[str],
+        assigned: set[str],
+    ) -> Optional[str]:
+        best_column: Optional[str] = None
+        best_score = 0.0
+        for column in available:
+            if column in assigned:
+                continue
+            unique_values = []
+            letter_count = 0
+            seen = set()
+            for row in rows:
+                raw_value = row.get(column)
+                if raw_value is None:
+                    continue
+                value = raw_value.strip()
+                if not value:
+                    continue
+                key = value.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                unique_values.append(value)
+                if any(char.isalpha() for char in value):
+                    letter_count += 1
+            if len(unique_values) < 2:
+                continue
+            text_ratio = letter_count / len(unique_values)
+            if text_ratio < 0.3:
+                continue
+            score = len(unique_values) + text_ratio
+            if score > best_score:
+                best_score = score
+                best_column = column
+        return best_column
 
     def _find_column(self, headers: Dict[str, str], aliases: List[str]) -> Optional[str]:
         for alias in aliases:
