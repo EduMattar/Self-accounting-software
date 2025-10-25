@@ -1,0 +1,13 @@
+[
+  {"number": "1", "name": "Cash", "type": "Asset"},
+  {"number": "2", "name": "EUR Current Account", "type": "Asset"},
+  {"number": "3", "name": "GBP Current Account", "type": "Asset"},
+  {"number": "4", "name": "BRL Account", "type": "Asset"},
+  {"number": "5", "name": "Dining", "type": "Expense"},
+  {"number": "6", "name": "Groceries", "type": "Expense"},
+  {"number": "7", "name": "Rent", "type": "Expense"},
+  {"number": "8", "name": "Travel", "type": "Expense"},
+  {"number": "9", "name": "Salary", "type": "Revenue"},
+  {"number": "10", "name": "Foreign Exchange Gain", "type": "Revenue"},
+  {"number": "11", "name": "Foreign Exchange Loss", "type": "Expense"}
+]
